@@ -94,7 +94,10 @@ function initializeDashboard() {
     playerSelect.innerHTML = '<option value="">Select Player</option>';
     stageSelect.innerHTML = '<option value="all">All Stages</option>';
     
-    // Populate player select
+    // Get the first player from the data (before sorting)
+    const firstPlayerInData = Object.keys(tournamentData)[0];
+    
+    // Populate player select with alphabetically sorted names
     const players = Object.keys(tournamentData);
     players.sort().forEach(player => {
         const option = document.createElement('option');
@@ -104,10 +107,9 @@ function initializeDashboard() {
     });
 
     // Get stages from the first player's most recent date
-    const firstPlayer = players[0];
-    const playerDates = Object.keys(tournamentData[firstPlayer]).sort();
+    const playerDates = Object.keys(tournamentData[firstPlayerInData]).sort();
     const latestDate = playerDates[playerDates.length - 1];
-    const stages = Object.keys(tournamentData[firstPlayer][latestDate]);
+    const stages = Object.keys(tournamentData[firstPlayerInData][latestDate]);
     
     // Add stages in the order they appear in the data
     stages.forEach(stage => {
@@ -117,12 +119,10 @@ function initializeDashboard() {
         stageSelect.appendChild(option);
     });
 
-    // Auto-select first player and all stages
-    if (players.length > 0) {
-        playerSelect.value = players[0];
-        stageSelect.value = 'all';
-        updateChart();
-    }
+    // Auto-select first player from data and all stages
+    playerSelect.value = firstPlayerInData;
+    stageSelect.value = 'all';
+    updateChart();
 }
 
 // Show welcome message when no data is loaded
@@ -197,6 +197,43 @@ function showWelcomeMessage() {
     });
 }
 
+// Add this function to determine player's tournament status
+function getTournamentProgress(playerData, stages) {
+    // Get the latest date's data
+    const dates = Object.keys(playerData).sort();
+    const latestData = playerData[dates[dates.length - 1]];
+    
+    // Check if player has won (all probabilities are 100)
+    const allHundred = Object.values(latestData).every(prob => prob === 100);
+    if (allHundred) {
+        return { status: 'winner', message: 'Tournament Winner' };
+    }
+
+    // Check if player is eliminated (has a zero probability)
+    // Find the earliest stage with 0 probability
+    for (const stage of stages) {
+        const stageProb = latestData[stage];
+        if (stageProb === 0) {
+            return { status: 'eliminated', message: `Eliminated in ${stage}` };
+        }
+    }
+
+    // If neither won nor eliminated, player is still in progress
+    return { status: 'active', message: 'Tournament In Progress' };
+}
+
+// Define stage colors - use a color generator based on stage name
+function getStageColor(stage, allStages) {
+    // Get consistent index for this stage
+    const index = allStages.indexOf(stage);
+    const total = allStages.length;
+    const hue = (index * 360 / total) % 360;
+    return {
+        border: `hsl(${hue}, 70%, 50%)`,
+        fill: `hsla(${hue}, 70%, 50%, 0.1)`
+    };
+}
+
 // Update the chart based on selected player and stage
 function updateChart() {
     const selectedPlayer = playerSelect.value;
@@ -211,6 +248,12 @@ function updateChart() {
     const playerData = tournamentData[selectedPlayer];
     const dates = Object.keys(playerData).sort();
 
+    // Get stages in order
+    const stages = Object.keys(playerData[dates[0]]);
+
+    // Get tournament progress
+    const progress = getTournamentProgress(playerData, stages);
+
     // Format dates for display
     const formattedDates = dates.map(date => {
         const [year, month, day] = date.split('-');
@@ -222,22 +265,11 @@ function updateChart() {
         chart.destroy();
     }
 
-    // Define stage colors - use a color generator based on index
-    const getStageColor = (index, total) => {
-        const hue = (index * 360 / total) % 360;
-        return {
-            border: `hsl(${hue}, 70%, 50%)`,
-            fill: `hsla(${hue}, 70%, 50%, 0.1)`  // Using hsla for proper transparency
-        };
-    };
-
     let datasets;
     if (selectedStage === 'all') {
         // Create datasets for all stages
-        const stages = Object.keys(playerData[dates[0]]);
-        
-        datasets = stages.map((stage, index) => {
-            const colors = getStageColor(index, stages.length);
+        datasets = stages.map(stage => {
+            const colors = getStageColor(stage, stages);
             return {
                 label: stage,
                 data: dates.map(date => playerData[date][stage]),
@@ -248,8 +280,8 @@ function updateChart() {
             };
         });
     } else {
-        // Create dataset for single stage
-        const colors = getStageColor(0, 1);
+        // Create dataset for single stage - use same color as in all stages view
+        const colors = getStageColor(selectedStage, stages);
         datasets = [{
             label: selectedStage,
             data: dates.map(date => playerData[date][selectedStage]),
@@ -291,11 +323,11 @@ function updateChart() {
             },
             scales: {
                 y: {
-                    beginAtZero: true,
-                    max: 100,
+                    beginAtZero: selectedStage === 'all',
+                    max: selectedStage === 'all' ? 100 : undefined,
                     title: {
                         display: true,
-                        text: 'Probability (%)'
+                        text: 'Round Win Probability (%)'
                     },
                     ticks: {
                         callback: function(value) {
@@ -315,9 +347,14 @@ function updateChart() {
 
     // Update stats panel
     if (selectedStage === 'all') {
-        // Hide stats panel for all stages view
-        highestOdds.innerHTML = '';
-        lowestOdds.innerHTML = '';
+        // Show tournament progress card
+        highestOdds.innerHTML = `
+            <div class="stats-card ${progress.status}">
+                <div class="stats-label">Tournament Status</div>
+                <div class="stats-value">${progress.message}</div>
+            </div>
+        `;
+        lowestOdds.innerHTML = ''; // Clear lowest odds
     } else {
         updateStats(selectedPlayer, selectedStage, dates, datasets[0].data);
     }
