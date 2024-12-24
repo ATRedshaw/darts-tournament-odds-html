@@ -23,20 +23,51 @@ async function loadTournaments() {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const files = await response.json();
-        const tournaments = files
+        
+        // Process tournaments and extract years
+        const tournamentsByYear = files
             .filter(file => file.name.endsWith('.json'))
-            .map(file => ({
-                name: file.name.replace('.json', '').replace(/-/g, ' '),
-                filename: file.name
-            }));
+            .map(file => {
+                const name = file.name.replace('.json', '').replace(/-/g, ' ');
+                // Extract year from the end of the tournament name
+                const yearMatch = name.match(/\d{4}$/);
+                const year = yearMatch ? yearMatch[0] : 'Unknown';
+                return {
+                    name: name,
+                    filename: file.name,
+                    year: year
+                };
+            })
+            .reduce((acc, tournament) => {
+                if (!acc[tournament.year]) {
+                    acc[tournament.year] = [];
+                }
+                acc[tournament.year].push(tournament);
+                return acc;
+            }, {});
 
-        // Populate tournament select
+        // Sort tournaments within each year alphabetically
+        Object.values(tournamentsByYear).forEach(tournaments => {
+            tournaments.sort((a, b) => a.name.localeCompare(b.name));
+        });
+
+        // Get sorted years in reverse chronological order
+        const years = Object.keys(tournamentsByYear).sort().reverse();
+
+        // Populate tournament select with grouped options
         tournamentSelect.innerHTML = '<option value="">Select Tournament</option>';
-        tournaments.forEach(tournament => {
-            const option = document.createElement('option');
-            option.value = tournament.filename;
-            option.textContent = tournament.name;
-            tournamentSelect.appendChild(option);
+        years.forEach(year => {
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = year;
+            
+            tournamentsByYear[year].forEach(tournament => {
+                const option = document.createElement('option');
+                option.value = tournament.filename;
+                option.textContent = tournament.name;
+                optgroup.appendChild(option);
+            });
+            
+            tournamentSelect.appendChild(optgroup);
         });
 
         // Show welcome message
@@ -53,7 +84,17 @@ async function loadTournaments() {
 // Update loadTournamentData function
 async function loadTournamentData(filename) {
     if (!filename) {
+        // Reset UI when no tournament is selected
+        playerSelect.innerHTML = '<option value="">Select Player</option>';
+        stageSelect.innerHTML = '<option value="">Select Stage</option>';
         document.querySelector('.chart-container').classList.remove('has-data');
+        if (chart) {
+            chart.destroy();
+            chart = null;
+        }
+        highestOdds.innerHTML = '';
+        lowestOdds.innerHTML = '';
+        showWelcomeMessage();
         return;
     }
 
@@ -241,6 +282,14 @@ function updateChart() {
     
     if (!selectedPlayer || !tournamentData?.[selectedPlayer]) {
         document.querySelector('.chart-container').classList.remove('has-data');
+        // Clear stats cards when no player is selected
+        highestOdds.innerHTML = '';
+        lowestOdds.innerHTML = '';
+        if (chart) {
+            chart.destroy();
+            chart = null;
+            showWelcomeMessage();
+        }
         return;
     }
 
