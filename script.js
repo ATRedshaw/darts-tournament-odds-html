@@ -3,8 +3,8 @@ const tournamentSelect = document.getElementById('tournamentSelect');
 const playerSelect = document.getElementById('playerSelect');
 const stageSelect = document.getElementById('stageSelect');
 const oddsChart = document.getElementById('oddsChart');
-const latestOdds = document.getElementById('latestOdds');
-const oddsChange = document.getElementById('oddsChange');
+const highestOdds = document.getElementById('highestOdds');
+const lowestOdds = document.getElementById('lowestOdds');
 const loadingIndicator = document.getElementById('loading');
 
 let chart = null;
@@ -66,8 +66,8 @@ async function loadTournamentData(filename) {
             chart.destroy();
             chart = null;
         }
-        latestOdds.innerHTML = '';
-        oddsChange.innerHTML = '';
+        highestOdds.innerHTML = '';
+        lowestOdds.innerHTML = '';
 
         const response = await fetch(`https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}/Data/${filename}`);
         if (!response.ok) {
@@ -194,7 +194,8 @@ function updateChart() {
             },
             scales: {
                 y: {
-                    beginAtZero: false,
+                    beginAtZero: true,
+                    max: 100,
                     title: {
                         display: true,
                         text: 'Probability (%)'
@@ -219,18 +220,51 @@ function updateChart() {
     updateStats(selectedPlayer, selectedStage, dates, odds);
 }
 
-// Update the stats panel with latest odds and 24h change
+// Update the stats panel with highest and lowest pre-match odds
 function updateStats(player, stage, dates, odds) {
-    const latestOddsValue = odds[odds.length - 1];
-    const previousOddsValue = odds[odds.length - 2] || latestOddsValue;
-    const oddsChangeValue = latestOddsValue - previousOddsValue;
+    // Filter out odds equal to 100 or 0
+    const validOddsWithDates = odds.map((odd, index) => ({
+        odd: odd,
+        date: dates[index]
+    })).filter(item => item.odd !== 100 && item.odd !== 0);
 
-    latestOdds.innerHTML = `<strong>${latestOddsValue.toFixed(1)}%</strong>`;
+    if (validOddsWithDates.length === 0) {
+        highestOdds.innerHTML = '<div class="stats-card"><em>No valid odds data available</em></div>';
+        lowestOdds.innerHTML = '<div class="stats-card"><em>No valid odds data available</em></div>';
+        return;
+    }
+
+    // Find highest and lowest odds with their dates
+    const highest = validOddsWithDates.reduce((max, current) => 
+        current.odd > max.odd ? current : max
+    );
+
+    const lowest = validOddsWithDates.reduce((min, current) => 
+        current.odd < min.odd ? current : min
+    );
+
+    // Format dates for display (DD/MM format)
+    const formatDate = (dateStr) => {
+        const [year, month, day] = dateStr.split('-');
+        return `${day}/${month}`;
+    };
+
+    // Update the HTML elements with formatted odds and dates
+    highestOdds.innerHTML = `
+        <div class="stats-card">
+            <div class="stats-label">Highest Pre-Match Probability</div>
+            <div class="stats-value">${highest.odd.toFixed(1)}%</div>
+            <div class="stats-date">Recorded on ${formatDate(highest.date)}</div>
+        </div>
+    `;
     
-    const changeText = oddsChangeValue.toFixed(1);
-    const changeSymbol = oddsChangeValue > 0 ? '▲' : oddsChangeValue < 0 ? '▼' : '►';
-    const changeClass = oddsChangeValue > 0 ? 'positive' : oddsChangeValue < 0 ? 'negative' : 'neutral';
-    oddsChange.innerHTML = `<span class="${changeClass}">${changeSymbol} ${changeText}%</span>`;
+    lowestOdds.innerHTML = `
+        <div class="stats-card">
+            <div class="stats-label">Lowest Pre-Match Probability</div>
+            <div class="stats-value">${lowest.odd.toFixed(1)}%</div>
+            <div class="stats-date">Recorded on ${formatDate(lowest.date)}</div>
+        </div>
+    `;
 }
 
 // Event listeners
