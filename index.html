@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Darts Tournament Odds Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="dashboard">
+        <header>
+            <h1>Darts Tournament Odds Tracker</h1>
+            <div class="tournament-info">
+                <h2>World Championship (Pre-Christmas) 2025</h2>
+            </div>
+            <div class="controls">
+                <div class="control-group">
+                    <label for="playerSelect">Player:</label>
+                    <select id="playerSelect"></select>
+                </div>
+                <div class="control-group">
+                    <label for="stageSelect">Tournament Stage:</label>
+                    <select id="stageSelect"></select>
+                </div>
+            </div>
+        </header>
+        
+        <main>
+            <div class="chart-container">
+                <canvas id="oddsChart"></canvas>
+            </div>
+            
+            <div class="stats-panel">
+                <div class="current-odds">
+                    <h3>Latest Odds</h3>
+                    <div id="latestOdds"></div>
+                </div>
+                <div class="odds-change">
+                    <h3>24h Change</h3>
+                    <div id="oddsChange"></div>
+                </div>
+            </div>
+        </main>
+        <div id="loading" class="loading">Loading tournament data...</div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
