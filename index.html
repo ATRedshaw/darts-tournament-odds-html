@@ -6,46 +6,72 @@
     <title>Darts Tournament Odds Dashboard</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Add Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="dashboard">
-        <header>
-            <h1>Darts Tournament Odds Tracker</h1>
-            <div class="controls">
-                <div class="control-group">
-                    <label for="tournamentSelect">Tournament:</label>
-                    <select id="tournamentSelect"></select>
+        <header class="dashboard-header">
+            <div class="header-content">
+                <div class="title-section">
+                    <h1>Alex's Darts Tournament Odds</h1>
+                    <p class="subtitle">Track tournament probability changes</p>
                 </div>
-                <div class="control-group">
-                    <label for="playerSelect">Player:</label>
-                    <select id="playerSelect"></select>
-                </div>
-                <div class="control-group">
-                    <label for="stageSelect">Tournament Stage:</label>
-                    <select id="stageSelect"></select>
+                
+                <div class="controls-container">
+                    <div class="controls">
+                        <div class="control-group">
+                            <label for="tournamentSelect">Tournament</label>
+                            <div class="select-wrapper">
+                                <select id="tournamentSelect"></select>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label for="playerSelect">Player</label>
+                            <div class="select-wrapper">
+                                <select id="playerSelect"></select>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label for="stageSelect">Stage</label>
+                            <div class="select-wrapper">
+                                <select id="stageSelect"></select>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </header>
         
-        <main>
-            <div class="chart-container">
-                <canvas id="oddsChart"></canvas>
+        <main class="dashboard-main">
+            <div class="chart-section">
+                <div class="chart-container">
+                    <div id="chartPlaceholder" class="chart-placeholder">
+                        <div class="placeholder-content">
+                            <span class="placeholder-emoji">📈</span>
+                            <span class="placeholder-text">Select a tournament to begin</span>
+                        </div>
+                    </div>
+                    <canvas id="oddsChart"></canvas>
+                </div>
             </div>
             
-            <div class="stats-panel">
-                <div class="current-odds">
-                    <h3>Latest Odds</h3>
-                    <div id="latestOdds"></div>
+            <div class="stats-section">
+                <div class="stats-panel">
+                    <div id="highestOdds"></div>
+                    <div id="lowestOdds"></div>
                 </div>
-                <div class="odds-change">
-                    <h3>24h Change</h3>
-                    <div id="oddsChange"></div>
-                </div>
-                <div id="highestOdds"></div>
-                <div id="lowestOdds"></div>
             </div>
         </main>
-        <div id="loading" class="loading">Loading tournament data...</div>
+
+        <div id="loading" class="loading">
+            <div class="loading-content">
+                <div class="loading-spinner"></div>
+                <span>Loading tournament data...</span>
+            </div>
+        </div>
     </div>
     <script src="script.js"></script>
 </body>

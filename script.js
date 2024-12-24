@@ -39,11 +39,8 @@ async function loadTournaments() {
             tournamentSelect.appendChild(option);
         });
 
-        // If there's only one tournament, select it automatically
-        if (tournaments.length === 1) {
-            tournamentSelect.value = tournaments[0].filename;
-            loadTournamentData(tournaments[0].filename);
-        }
+        // Show welcome message
+        showWelcomeMessage();
     } catch (error) {
         console.error('Error loading tournaments:', error);
         document.querySelector('.chart-container').innerHTML = 
@@ -53,9 +50,12 @@ async function loadTournaments() {
     }
 }
 
-// Load tournament data
+// Update loadTournamentData function
 async function loadTournamentData(filename) {
-    if (!filename) return;
+    if (!filename) {
+        document.querySelector('.chart-container').classList.remove('has-data');
+        return;
+    }
 
     try {
         loadingIndicator.classList.add('active');
@@ -74,6 +74,8 @@ async function loadTournamentData(filename) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         tournamentData = await response.json();
+        
+        // Remove Select2 related code
         initializeDashboard();
     } catch (error) {
         console.error('Error loading tournament data:', error);
@@ -90,7 +92,7 @@ function initializeDashboard() {
 
     // Clear existing options
     playerSelect.innerHTML = '<option value="">Select Player</option>';
-    stageSelect.innerHTML = '<option value="">Select Stage</option>';
+    stageSelect.innerHTML = '<option value="all">All Stages</option>';
     
     // Populate player select
     const players = Object.keys(tournamentData);
@@ -107,35 +109,92 @@ function initializeDashboard() {
     const latestDate = playerDates[playerDates.length - 1];
     const stages = Object.keys(tournamentData[firstPlayer][latestDate]);
     
-    // Sort stages in tournament order
-    const stageOrder = [
-        "Last 128",
-        "Last 64",
-        "Last 32",
-        "Last 16",
-        "Quarter Finals",
-        "Semi Finals",
-        "Final"
-    ];
-    
-    stages.sort((a, b) => stageOrder.indexOf(a) - stageOrder.indexOf(b))
-          .forEach(stage => {
-              const option = document.createElement('option');
-              option.value = stage;
-              option.textContent = stage;
-              stageSelect.appendChild(option);
-          });
+    // Add stages in the order they appear in the data
+    stages.forEach(stage => {
+        const option = document.createElement('option');
+        option.value = stage;
+        option.textContent = stage;
+        stageSelect.appendChild(option);
+    });
 
-    // Set default selections
+    // Auto-select first player and all stages
     if (players.length > 0) {
         playerSelect.value = players[0];
+        stageSelect.value = 'all';
+        updateChart();
     }
-    if (stages.length > 0) {
-        stageSelect.value = stages[0];
-    }
+}
 
-    // Initial update
-    updateChart();
+// Show welcome message when no data is loaded
+function showWelcomeMessage() {
+    if (chart) {
+        chart.destroy();
+        chart = null;
+    }
+    
+    chart = new Chart(oddsChart, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: []
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            layout: {
+                padding: 20
+            },
+            scales: {
+                y: {
+                    display: false,
+                    grid: {
+                        display: false
+                    }
+                },
+                x: {
+                    display: false,
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            plugins: [{
+                id: 'welcomeMessage',
+                beforeDraw: (chart) => {
+                    const ctx = chart.ctx;
+                    const width = chart.width;
+                    const height = chart.height;
+
+                    // Clear the canvas
+                    ctx.save();
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, width, height);
+
+                    // Draw the message
+                    const message = '📈';
+                    const subMessage = 'Select a tournament to begin';
+                    
+                    // Draw emoji
+                    ctx.font = '32px Inter';
+                    ctx.fillStyle = '#64748b';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(message, width / 2, height / 2 - 20);
+                    
+                    // Draw text
+                    ctx.font = '14px Inter';
+                    ctx.fillText(subMessage, width / 2, height / 2 + 20);
+                    
+                    ctx.restore();
+                }
+            }]
+        }
+    });
 }
 
 // Update the chart based on selected player and stage
@@ -143,13 +202,14 @@ function updateChart() {
     const selectedPlayer = playerSelect.value;
     const selectedStage = stageSelect.value;
     
-    if (!selectedPlayer || !selectedStage || !tournamentData?.[selectedPlayer]) {
+    if (!selectedPlayer || !tournamentData?.[selectedPlayer]) {
+        document.querySelector('.chart-container').classList.remove('has-data');
         return;
     }
 
+    document.querySelector('.chart-container').classList.add('has-data');
     const playerData = tournamentData[selectedPlayer];
     const dates = Object.keys(playerData).sort();
-    const odds = dates.map(date => playerData[date][selectedStage]);
 
     // Format dates for display
     const formattedDates = dates.map(date => {
@@ -162,32 +222,69 @@ function updateChart() {
         chart.destroy();
     }
 
+    // Define stage colors - use a color generator based on index
+    const getStageColor = (index, total) => {
+        const hue = (index * 360 / total) % 360;
+        return {
+            border: `hsl(${hue}, 70%, 50%)`,
+            fill: `hsla(${hue}, 70%, 50%, 0.1)`  // Using hsla for proper transparency
+        };
+    };
+
+    let datasets;
+    if (selectedStage === 'all') {
+        // Create datasets for all stages
+        const stages = Object.keys(playerData[dates[0]]);
+        
+        datasets = stages.map((stage, index) => {
+            const colors = getStageColor(index, stages.length);
+            return {
+                label: stage,
+                data: dates.map(date => playerData[date][stage]),
+                borderColor: colors.border,
+                backgroundColor: colors.fill,
+                tension: 0.4,
+                fill: true
+            };
+        });
+    } else {
+        // Create dataset for single stage
+        const colors = getStageColor(0, 1);
+        datasets = [{
+            label: selectedStage,
+            data: dates.map(date => playerData[date][selectedStage]),
+            borderColor: colors.border,
+            backgroundColor: colors.fill,
+            tension: 0.4,
+            fill: true
+        }];
+    }
+
     chart = new Chart(oddsChart, {
         type: 'line',
         data: {
             labels: formattedDates,
-            datasets: [{
-                label: `${selectedStage} Odds`,
-                data: odds,
-                borderColor: '#3498db',
-                backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                tension: 0.4,
-                fill: true
-            }]
+            datasets: datasets
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    display: false
+                    display: selectedStage === 'all',
+                    position: 'top',
+                    align: 'center',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 20
+                    }
                 },
                 tooltip: {
                     mode: 'index',
                     intersect: false,
                     callbacks: {
                         label: function(context) {
-                            return `Probability: ${context.raw.toFixed(1)}%`;
+                            return `${context.dataset.label}: ${context.raw.toFixed(1)}%`;
                         }
                     }
                 }
@@ -217,7 +314,13 @@ function updateChart() {
     });
 
     // Update stats panel
-    updateStats(selectedPlayer, selectedStage, dates, odds);
+    if (selectedStage === 'all') {
+        // Hide stats panel for all stages view
+        highestOdds.innerHTML = '';
+        lowestOdds.innerHTML = '';
+    } else {
+        updateStats(selectedPlayer, selectedStage, dates, datasets[0].data);
+    }
 }
 
 // Update the stats panel with highest and lowest pre-match odds
@@ -267,10 +370,10 @@ function updateStats(player, stage, dates, odds) {
     `;
 }
 
-// Event listeners
+// Update event listeners
 tournamentSelect.addEventListener('change', (e) => loadTournamentData(e.target.value));
 playerSelect.addEventListener('change', updateChart);
 stageSelect.addEventListener('change', updateChart);
 
-// Start by loading available tournaments
+// Initialize on DOM content loaded
 document.addEventListener('DOMContentLoaded', loadTournaments);
