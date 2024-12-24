@@ -243,7 +243,7 @@ function updateChart() {
                 data: dates.map(date => playerData[date][stage]),
                 borderColor: colors.border,
                 backgroundColor: colors.fill,
-                tension: 0.4,
+                tension: 0,
                 fill: true
             };
         });
@@ -255,7 +255,7 @@ function updateChart() {
             data: dates.map(date => playerData[date][selectedStage]),
             borderColor: colors.border,
             backgroundColor: colors.fill,
-            tension: 0.4,
+            tension: 0,
             fill: true
         }];
     }
@@ -325,24 +325,24 @@ function updateChart() {
 
 // Update the stats panel with highest and lowest pre-match odds
 function updateStats(player, stage, dates, odds) {
-    // Filter out odds equal to 100 or 0
-    const validOddsWithDates = odds.map((odd, index) => ({
+    // Map odds with dates but don't filter out 100 or 0
+    const oddsWithDates = odds.map((odd, index) => ({
         odd: odd,
         date: dates[index]
-    })).filter(item => item.odd !== 100 && item.odd !== 0);
+    }));
 
-    if (validOddsWithDates.length === 0) {
-        highestOdds.innerHTML = '<div class="stats-card"><em>No valid odds data available</em></div>';
-        lowestOdds.innerHTML = '<div class="stats-card"><em>No valid odds data available</em></div>';
+    if (oddsWithDates.length === 0) {
+        highestOdds.innerHTML = '<div class="stats-card"><em>No odds data available</em></div>';
+        lowestOdds.innerHTML = '<div class="stats-card"><em>No odds data available</em></div>';
         return;
     }
 
     // Find highest and lowest odds with their dates
-    const highest = validOddsWithDates.reduce((max, current) => 
+    const highest = oddsWithDates.reduce((max, current) => 
         current.odd > max.odd ? current : max
     );
 
-    const lowest = validOddsWithDates.reduce((min, current) => 
+    const lowest = oddsWithDates.reduce((min, current) => 
         current.odd < min.odd ? current : min
     );
 
