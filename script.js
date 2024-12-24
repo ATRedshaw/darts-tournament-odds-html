@@ -411,24 +411,35 @@ function updateChart() {
 
 // Update the stats panel with highest and lowest pre-match odds
 function updateStats(player, stage, dates, odds) {
-    // Map odds with dates but don't filter out 100 or 0
-    const oddsWithDates = odds.map((odd, index) => ({
+    // Find the index where the match was played (where probability jumps to 100 or drops to 0)
+    let matchPlayedIndex = odds.findIndex((odd, index) => {
+        if (index === 0) return false;
+        return (odd === 100 && odds[index - 1] < 100) || (odd === 0 && odds[index - 1] > 0);
+    });
+
+    // If no match result found, use all odds
+    if (matchPlayedIndex === -1) {
+        matchPlayedIndex = odds.length;
+    }
+
+    // Only use odds up to when the match was played
+    const preMatchOdds = odds.slice(0, matchPlayedIndex).map((odd, index) => ({
         odd: odd,
         date: dates[index]
     }));
 
-    if (oddsWithDates.length === 0) {
-        highestOdds.innerHTML = '<div class="stats-card"><em>No odds data available</em></div>';
-        lowestOdds.innerHTML = '<div class="stats-card"><em>No odds data available</em></div>';
+    if (preMatchOdds.length === 0) {
+        highestOdds.innerHTML = '<div class="stats-card"><em>No pre-match odds data available</em></div>';
+        lowestOdds.innerHTML = '<div class="stats-card"><em>No pre-match odds data available</em></div>';
         return;
     }
 
     // Find highest and lowest odds with their dates
-    const highest = oddsWithDates.reduce((max, current) => 
+    const highest = preMatchOdds.reduce((max, current) => 
         current.odd > max.odd ? current : max
     );
 
-    const lowest = oddsWithDates.reduce((min, current) => 
+    const lowest = preMatchOdds.reduce((min, current) => 
         current.odd < min.odd ? current : min
     );
 
