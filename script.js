@@ -1,4 +1,5 @@
 // DOM Elements
+const tournamentSelect = document.getElementById('tournamentSelect');
 const playerSelect = document.getElementById('playerSelect');
 const stageSelect = document.getElementById('stageSelect');
 const oddsChart = document.getElementById('oddsChart');
@@ -9,11 +10,66 @@ const loadingIndicator = document.getElementById('loading');
 let chart = null;
 let tournamentData = null;
 
-// Load tournament data
-async function loadTournamentData() {
+// GitHub repository information
+const GITHUB_REPO = 'ATRedshaw/darts-tournament-odds-html';
+const GITHUB_BRANCH = 'main';
+
+// Load available tournaments
+async function loadTournaments() {
     try {
         loadingIndicator.classList.add('active');
-        const response = await fetch('Data/World-Championship-(Pre-Christmas)-2025.json');
+        const response = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/Data?ref=${GITHUB_BRANCH}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const files = await response.json();
+        const tournaments = files
+            .filter(file => file.name.endsWith('.json'))
+            .map(file => ({
+                name: file.name.replace('.json', '').replace(/-/g, ' '),
+                filename: file.name
+            }));
+
+        // Populate tournament select
+        tournamentSelect.innerHTML = '<option value="">Select Tournament</option>';
+        tournaments.forEach(tournament => {
+            const option = document.createElement('option');
+            option.value = tournament.filename;
+            option.textContent = tournament.name;
+            tournamentSelect.appendChild(option);
+        });
+
+        // If there's only one tournament, select it automatically
+        if (tournaments.length === 1) {
+            tournamentSelect.value = tournaments[0].filename;
+            loadTournamentData(tournaments[0].filename);
+        }
+    } catch (error) {
+        console.error('Error loading tournaments:', error);
+        document.querySelector('.chart-container').innerHTML = 
+            `<div class="error-message">Error loading tournaments. Please check the console for details.</div>`;
+    } finally {
+        loadingIndicator.classList.remove('active');
+    }
+}
+
+// Load tournament data
+async function loadTournamentData(filename) {
+    if (!filename) return;
+
+    try {
+        loadingIndicator.classList.add('active');
+        // Clear previous data
+        playerSelect.innerHTML = '<option value="">Select Player</option>';
+        stageSelect.innerHTML = '<option value="">Select Stage</option>';
+        if (chart) {
+            chart.destroy();
+            chart = null;
+        }
+        latestOdds.innerHTML = '';
+        oddsChange.innerHTML = '';
+
+        const response = await fetch(`https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}/Data/${filename}`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -178,8 +234,9 @@ function updateStats(player, stage, dates, odds) {
 }
 
 // Event listeners
+tournamentSelect.addEventListener('change', (e) => loadTournamentData(e.target.value));
 playerSelect.addEventListener('change', updateChart);
 stageSelect.addEventListener('change', updateChart);
 
-// Start loading data when the page loads
-document.addEventListener('DOMContentLoaded', loadTournamentData);
+// Start by loading available tournaments
+document.addEventListener('DOMContentLoaded', loadTournaments);
